@@ -1,18 +1,18 @@
 imu_topic: /livox/imu
 lidar_topic: /livox/lidar
-body_frame: body
-world_frame: lidar
-print_time_cost: false
+body_frame: fastlio_lidar
+world_frame: world
+print_time_cost: true
 
-lidar_filter_num: 6
-lidar_min_range: 0.5
-lidar_max_range: 30.0
-scan_resolution: 0.15
-map_resolution: 0.3
+lidar_filter_num: 2
+lidar_min_range: 0.4
+lidar_max_range: 5.0
+scan_resolution: 0.10
+map_resolution: 0.10
 
-cube_len: 300
-det_range: 60
-move_thresh: 1.5
+cube_len: 30.0
+det_range: 3.0
+move_thresh: 1.0
 
 na: 0.01
 ng: 0.01

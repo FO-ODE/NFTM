@@ -25,13 +25,5 @@ def generate_launch_description():
                 output="screen",
                 parameters=[{"config_path": config_path.perform(launch.LaunchContext())}]
             ),
-            launch_ros.actions.Node(
-                package="rviz2",
-                namespace="fastlio2",
-                executable="rviz2",
-                name="rviz2",
-                output="screen",
-                arguments=["-d", rviz_cfg.perform(launch.LaunchContext())],
-            ),
         ]
     )
