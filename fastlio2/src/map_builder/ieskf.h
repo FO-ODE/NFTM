@@ -4,11 +4,13 @@
 #include "commons.h"
 
 using M12D = Eigen::Matrix<double, 12, 12>;
-using M21D = Eigen::Matrix<double, 21, 21>;
+using M6D = Eigen::Matrix<double, 6, 6>;
+using M15D = Eigen::Matrix<double, 15, 15>;
 
+using V6D = Eigen::Matrix<double, 6, 1>;
 using V12D = Eigen::Matrix<double, 12, 1>;
-using V21D = Eigen::Matrix<double, 21, 1>;
-using M21X12D = Eigen::Matrix<double, 21, 12>;
+using V15D = Eigen::Matrix<double, 15, 1>;
+using M15X12D = Eigen::Matrix<double, 15, 12>;
 
 M3D Jr(const V3D &inp);
 M3D JrInv(const V3D &inp);
@@ -17,8 +19,8 @@ struct SharedState
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    M12D H;
-    V12D b;
+    M6D H;
+    V6D b;
     double res = 1e10;
     bool valid = false;
     size_t iter_num = 0;
@@ -38,8 +40,6 @@ struct State
     static double gravity;
     M3D r_wi = M3D::Identity();
     V3D t_wi = V3D::Zero();
-    M3D r_il = M3D::Identity();
-    V3D t_il = V3D::Zero();
     V3D v = V3D::Zero();
     V3D bg = V3D::Zero();
     V3D ba = V3D::Zero();
@@ -47,15 +47,15 @@ struct State
 
     void initGravityDir(const V3D &gravity_dir) { g = gravity_dir.normalized() * State::gravity; }
 
-    void operator+=(const V21D &delta);
+    void operator+=(const V15D &delta);
 
-    V21D operator-(const State &other) const;
+    V15D operator-(const State &other) const;
 
     friend std::ostream &operator<<(std::ostream &os, const State &state);
 };
 
 using loss_func = std::function<void(State &, SharedState &)>;
-using stop_func = std::function<bool(const V21D &)>;
+using stop_func = std::function<bool(const V15D &)>;
 
 class IESKF
 {
@@ -71,14 +71,14 @@ public:
 
     State &x() { return m_x; }
 
-    M21D &P() { return m_P; }
+    M15D &P() { return m_P; }
 
 private:
     size_t m_max_iter = 10;
     State m_x;
-    M21D m_P;
+    M15D m_P;
     loss_func m_loss_func;
     stop_func m_stop_func;
-    M21D m_F;
-    M21X12D m_G;
+    M15D m_F;
+    M15X12D m_G;
 };

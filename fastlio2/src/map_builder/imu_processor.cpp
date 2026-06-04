@@ -27,8 +27,6 @@ bool IMUProcessor::initialize(SyncPackage &package)
     }
     acc_mean /= static_cast<double>(m_imu_cache.size());
     gyro_mean /= static_cast<double>(m_imu_cache.size());
-    m_kf->x().r_il = m_config.r_il;
-    m_kf->x().t_il = m_config.t_il;
     m_kf->x().bg = gyro_mean;
     if (m_config.gravity_align)
     {
@@ -38,10 +36,8 @@ bool IMUProcessor::initialize(SyncPackage &package)
     else
         m_kf->x().initGravityDir(-acc_mean);
     m_kf->P().setIdentity();
-    m_kf->P().block<3, 3>(6, 6) = M3D::Identity() * 0.00001;
     m_kf->P().block<3, 3>(9, 9) = M3D::Identity() * 0.00001;
-    m_kf->P().block<3, 3>(15, 15) = M3D::Identity() * 0.0001;
-    m_kf->P().block<3, 3>(18, 18) = M3D::Identity() * 0.0001;
+    m_kf->P().block<3, 3>(12, 12) = M3D::Identity() * 0.0001;
 
     m_last_imu = m_imu_cache.back();
     m_last_propagate_end_time = package.cloud_end_time;
@@ -100,8 +96,8 @@ void IMUProcessor::undistort(SyncPackage &package)
 
     M3D cur_r_wi = m_kf->x().r_wi;
     V3D cur_t_wi = m_kf->x().t_wi;
-    M3D cur_r_il = m_kf->x().r_il;
-    V3D cur_t_il = m_kf->x().t_il;
+    M3D cur_r_il = m_config.r_il;
+    V3D cur_t_il = m_config.t_il;
     auto it_pcl = package.cloud->points.end() - 1;
 
     for (auto it_kp = m_poses_cache.end() - 1; it_kp != m_poses_cache.begin(); it_kp--)

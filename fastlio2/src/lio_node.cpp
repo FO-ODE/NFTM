@@ -105,7 +105,6 @@ public:
         m_builder_config.near_search_num = config["near_search_num"].as<int>();
         m_builder_config.ieskf_max_iter = config["ieskf_max_iter"].as<int>();
         m_builder_config.gravity_align = config["gravity_align"].as<bool>();
-        m_builder_config.esti_il = config["esti_il"].as<bool>();
         std::vector<double> t_il_vec = config["t_il"].as<std::vector<double>>();
         std::vector<double> r_il_vec = config["r_il"].as<std::vector<double>>();
         m_builder_config.t_il << t_il_vec[0], t_il_vec[1], t_il_vec[2];
@@ -261,7 +260,7 @@ public:
 
         publishOdometry(m_odom_pub, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
 
-        CloudType::Ptr body_cloud = m_builder->lidar_processor()->transformCloud(m_package.cloud, m_kf->x().r_il, m_kf->x().t_il);
+        CloudType::Ptr body_cloud = m_builder->lidar_processor()->transformCloud(m_package.cloud, m_builder_config.r_il, m_builder_config.t_il);
 
         publishCloud(m_body_cloud_pub, body_cloud, m_node_config.body_frame, m_package.cloud_end_time);
 

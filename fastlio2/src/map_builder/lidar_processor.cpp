@@ -19,7 +19,7 @@ LidarProcessor::LidarProcessor(Config &config, std::shared_ptr<IESKF> kf) : m_co
 
     m_kf->setLossFunction([&](State &s, SharedState &d)
                           { updateLossFunc(s, d); });
-    m_kf->setStopFunction([&](const V21D &delta) -> bool
+    m_kf->setStopFunction([&](const V15D &delta) -> bool
                           { V3D rot_delta = delta.block<3, 1>(0, 0);
                             V3D t_delta = delta.block<3, 1>(3, 0);
                             return (rot_delta.norm() * 57.3 < 0.01) && (t_delta.norm() * 100 < 0.015); });
@@ -29,7 +29,7 @@ void LidarProcessor::trimCloudMap()
 {
     m_local_map.cub_to_rm.clear();
     const State &state = m_kf->x();
-    Eigen::Vector3d pos_lidar = state.t_wi + state.r_wi * state.t_il;
+    Eigen::Vector3d pos_lidar = state.t_wi + state.r_wi * m_config.t_il;
 
     if (!m_local_map.initialed)
     {
@@ -99,7 +99,7 @@ void LidarProcessor::incrCloudMap()
     {
         const PointType &p = m_cloud_down_lidar->points[i];
         Eigen::Vector3d point(p.x, p.y, p.z);
-        point = state.r_wi * (state.r_il * point + state.t_il) + state.t_wi;
+        point = state.r_wi * (m_config.r_il * point + m_config.t_il) + state.t_wi;
         m_cloud_down_world->points[i].x = point(0);
         m_cloud_down_world->points[i].y = point(1);
         m_cloud_down_world->points[i].z = point(2);
@@ -154,7 +154,7 @@ void LidarProcessor::process(SyncPackage &package)
 {
     // m_kf->setLossFunction([&](State &s, SharedState &d)
     //                       { updateLossFunc(s, d); });
-    // m_kf->setStopFunction([&](const V21D &delta) -> bool
+    // m_kf->setStopFunction([&](const V15D &delta) -> bool
     //                       { V3D rot_delta = delta.block<3, 1>(0, 0);
     //                         V3D t_delta = delta.block<3, 1>(3, 0);
     //                         return (rot_delta.norm() * 57.3 < 0.01) && (t_delta.norm() * 100 < 0.015); });
@@ -184,7 +184,7 @@ void LidarProcessor::updateLossFunc(State &state, SharedState &share_data)
         PointType &point_body = m_cloud_down_lidar->points[i];
         PointType &point_world = m_cloud_down_world->points[i];
         Eigen::Vector3d point_body_vec(point_body.x, point_body.y, point_body.z);
-        Eigen::Vector3d point_world_vec = state.r_wi * (state.r_il * point_body_vec + state.t_il) + state.t_wi;
+        Eigen::Vector3d point_world_vec = state.r_wi * (m_config.r_il * point_body_vec + m_config.t_il) + state.t_wi;
         point_world.x = point_world_vec(0);
         point_world.y = point_world_vec(1);
         point_world.z = point_world_vec(2);
@@ -234,7 +234,7 @@ void LidarProcessor::updateLossFunc(State &state, SharedState &share_data)
     share_data.valid = true;
     share_data.H.setZero();
     share_data.b.setZero();
-    Eigen::Matrix<double, 1, 12> J;
+    Eigen::Matrix<double, 1, 6> J;
     for (int i = 0; i < effect_feat_num; i++)
     {
         J.setZero();
@@ -242,16 +242,9 @@ void LidarProcessor::updateLossFunc(State &state, SharedState &share_data)
         const PointType &norm_p = m_effect_norm_vec->points[i];
         Eigen::Vector3d laser_p_vec(laser_p.x, laser_p.y, laser_p.z);
         Eigen::Vector3d norm_vec(norm_p.x, norm_p.y, norm_p.z);
-        Eigen::Matrix<double, 1, 3> B = -norm_vec.transpose() * state.r_wi * Sophus::SO3d::hat(state.r_il * laser_p_vec + state.t_wi);
+        Eigen::Matrix<double, 1, 3> B = -norm_vec.transpose() * state.r_wi * Sophus::SO3d::hat(m_config.r_il * laser_p_vec + m_config.t_il);
         J.block<1, 3>(0, 0) = B;
         J.block<1, 3>(0, 3) = norm_vec.transpose();
-        if (m_config.esti_il)
-        {
-            Eigen::Matrix<double, 1, 3> C = -norm_vec.transpose() * state.r_wi * state.r_il * Sophus::SO3d::hat(laser_p_vec);
-            Eigen::Matrix<double, 1, 3> D = norm_vec.transpose() * state.r_wi;
-            J.block<1, 3>(0, 6) = C;
-            J.block<1, 3>(0, 9) = D;
-        }
         share_data.H += J.transpose() * m_config.lidar_cov_inv * J;
         share_data.b += J.transpose() * m_config.lidar_cov_inv * norm_p.intensity;
     }

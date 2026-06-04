@@ -24,7 +24,6 @@ near_search_num: 5
 ieskf_max_iter: 5
 
 gravity_align: true
-esti_il: false
 
 r_il: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 t_il: [-0.011, -0.02329, 0.04412]

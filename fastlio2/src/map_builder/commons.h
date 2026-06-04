@@ -47,7 +47,6 @@ struct Config
     int near_search_num = 5;
     int ieskf_max_iter = 5;
     bool gravity_align = true;
-    bool esti_il = false;
     M3D r_il = M3D::Identity();
     V3D t_il = V3D::Zero();
 
