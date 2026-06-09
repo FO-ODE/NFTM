@@ -19,6 +19,6 @@ private:
     Vec<Pose> m_poses_cache;
     V3D m_last_acc;
     V3D m_last_gyro;
-    M12D m_Q;
+    MNoiseD m_Q;
     IMUData m_last_imu;
 };

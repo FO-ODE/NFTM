@@ -57,6 +57,7 @@ struct Config
     double contact_force_threshold = 20.0;
     double contact_position_cov_inv = 100.0;
     double contact_velocity_cov_inv = 100.0;
+    double contact_foot_position_noise = 0.01;
     double contact_abduction_link = 0.0955;
     double contact_thigh_link = 0.213;
     double contact_calf_link = 0.213;

@@ -167,6 +167,8 @@ public:
             m_builder_config.contact_position_cov_inv = config["contact_position_cov_inv"].as<double>();
         if (config["contact_velocity_cov_inv"])
             m_builder_config.contact_velocity_cov_inv = config["contact_velocity_cov_inv"].as<double>();
+        if (config["contact_foot_position_noise"])
+            m_builder_config.contact_foot_position_noise = config["contact_foot_position_noise"].as<double>();
         if (config["contact_abduction_link"])
             m_builder_config.contact_abduction_link = config["contact_abduction_link"].as<double>();
         if (config["contact_thigh_link"])

@@ -38,9 +38,12 @@ t_il: [-0.011, -0.02329, 0.04412]
 lidar_cov_inv: 1000.0
 
 contact_enable: true
-contact_force_threshold: 40.0
-contact_position_cov_inv: 100.0
-contact_velocity_cov_inv: 100.0
+contact_force_threshold: 30.0
+contact_position_cov_inv: 500.0
+contact_velocity_cov_inv: 500.0
+# Zero-mean Gaussian random-walk noise for each foot position state.
+# Larger value lets p_f drift faster during propagation; contact residuals pull it back.
+contact_foot_position_noise: 0.01
 contact_abduction_link: 0.0955
 contact_thigh_link: 0.213
 contact_calf_link: 0.213

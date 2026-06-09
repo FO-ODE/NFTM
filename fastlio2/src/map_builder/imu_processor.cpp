@@ -7,6 +7,8 @@ IMUProcessor::IMUProcessor(Config &config, std::shared_ptr<IESKF> kf) : m_config
     m_Q.block<3, 3>(3, 3) = M3D::Identity() * m_config.na;
     m_Q.block<3, 3>(6, 6) = M3D::Identity() * m_config.nbg;
     m_Q.block<3, 3>(9, 9) = M3D::Identity() * m_config.nba;
+    for (int i = 0; i < 4; i++)
+        m_Q.block<3, 3>(12 + 3 * i, 12 + 3 * i) = M3D::Identity() * m_config.contact_foot_position_noise;
     m_last_acc.setZero();
     m_last_gyro.setZero();
     m_imu_cache.clear();

@@ -3,15 +3,15 @@
 #include <sophus/so3.hpp>
 #include "commons.h"
 
-using M12D = Eigen::Matrix<double, 12, 12>;
+static constexpr int kNominalStateDim = 27;
+static constexpr int kNoiseDim = 24;
+static constexpr int kFootPositionStartIdx = 15;
+static constexpr int kFootPositionDim = 12;
+
+using MNoiseD = Eigen::Matrix<double, kNoiseDim, kNoiseDim>;
 using M6D = Eigen::Matrix<double, 6, 6>;
 
 using V6D = Eigen::Matrix<double, 6, 1>;
-
-static constexpr int kNominalStateDim = 27;
-static constexpr int kNoiseDim = 12;
-static constexpr int kFootPositionStartIdx = 15;
-static constexpr int kFootPositionDim = 12;
 
 using MStateD = Eigen::Matrix<double, kNominalStateDim, kNominalStateDim>;
 using VStateD = Eigen::Matrix<double, kNominalStateDim, 1>;
@@ -74,7 +74,7 @@ public:
     void setLossFunction(loss_func func) { m_loss_func = func; }
     void setStopFunction(stop_func func) { m_stop_func = func; }
 
-    void predict(const Input &inp, double dt, const M12D &Q);
+    void predict(const Input &inp, double dt, const MNoiseD &Q);
 
     void update();
 

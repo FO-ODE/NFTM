@@ -57,7 +57,7 @@ std::ostream &operator<<(std::ostream &os, const State &state)
     return os;
 }
 
-void IESKF::predict(const Input &inp, double dt, const M12D &Q)
+void IESKF::predict(const Input &inp, double dt, const MNoiseD &Q)
 {
     VStateD delta = VStateD::Zero();
     delta.segment<3>(0) = (inp.gyro - m_x.bg) * dt;
@@ -76,6 +76,10 @@ void IESKF::predict(const Input &inp, double dt, const M12D &Q)
     m_G.block<3, 3>(6, 3) = -m_x.r_wi * dt;
     m_G.block<3, 3>(9, 9) = Eigen::Matrix3d::Identity() * dt;
     m_G.block<3, 3>(12, 6) = Eigen::Matrix3d::Identity() * dt;
+    m_G.block<3, 3>(kFootPositionStartIdx, 12) = Eigen::Matrix3d::Identity() * dt;
+    m_G.block<3, 3>(kFootPositionStartIdx + 3, 15) = Eigen::Matrix3d::Identity() * dt;
+    m_G.block<3, 3>(kFootPositionStartIdx + 6, 18) = Eigen::Matrix3d::Identity() * dt;
+    m_G.block<3, 3>(kFootPositionStartIdx + 9, 21) = Eigen::Matrix3d::Identity() * dt;
 
     m_x += delta;
     m_P = m_F * m_P * m_F.transpose() + m_G * Q * m_G.transpose();
