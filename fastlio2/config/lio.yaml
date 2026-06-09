@@ -35,7 +35,7 @@ gravity_align: true
 r_il: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 t_il: [-0.011, -0.02329, 0.04412]
 
-lidar_cov_inv: 1000.0
+lidar_cov_inv: 1200.0
 
 contact_enable: true
 contact_force_threshold: 30.0
