@@ -17,7 +17,7 @@ void MapBuilder::process(SyncPackage &package)
     }
 
     m_imu_processor->undistort(package);
-    m_contact_processor->process(package);
+    m_contact_processor->prepare(package);
 
     if (m_status == BuilderStatus::MAP_INIT)
     {
@@ -27,5 +27,6 @@ void MapBuilder::process(SyncPackage &package)
         return;
     }
     
-    m_lidar_processor->process(package);
+    m_lidar_processor->process(package, [&](State &s, SharedState &d)
+                               { m_contact_processor->updateLossFunc(s, d); });
 }

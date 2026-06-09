@@ -3,6 +3,12 @@ lidar_topic: /livox/lidar
 lowstate_topic: /lowstate
 body_frame: fastlio_lidar
 world_frame: world
+publish_foot_markers: true
+foot_marker_topic: foot_markers
+foot_marker_names: [fr, fl, rr, rl]
+# Marker RGB colors in the same order as foot_marker_names:
+# fr = red, fl = blue, rr = yellow, rl = green.
+foot_marker_colors: [1.0, 0.2, 0.2, 0.2, 0.8, 1.0, 1.0, 0.8, 0.2, 0.2, 1.0, 0.4]
 print_time_cost: true
 
 lidar_filter_num: 2
@@ -32,11 +38,18 @@ t_il: [-0.011, -0.02329, 0.04412]
 lidar_cov_inv: 1000.0
 
 contact_enable: true
-contact_force_threshold: 20.0
+contact_force_threshold: 40.0
 contact_position_cov_inv: 100.0
 contact_velocity_cov_inv: 100.0
 contact_abduction_link: 0.0955
 contact_thigh_link: 0.213
 contact_calf_link: 0.213
-# Unitree motor order: FR, FL, RR, RL; each hip offset is [x, y, z] in body frame.
+# Unitree base -> FAST-LIO body/IMU. Here FAST-LIO body coincides with mid360_imu.
+# From go2_description.urdf:
+# base -> mid360withcase: xyz [0.22, 0, 0.08], rpy [0, 0, 0]
+# mid360withcase -> mid360_lidar: xyz [0.055, 0, 0.0835], rpy [0, 0.7853981634, 0]
+# mid360_lidar -> mid360_imu: xyz [0.011, 0.02329, -0.04412], rpy [0, 0, 0]
+contact_r_base_body: [0.70710678, 0.0, 0.70710678, 0.0, 1.0, 0.0, -0.70710678, 0.0, 0.70710678]
+contact_t_base_body: [0.25158062, 0.02329, 0.12452427]
+# Unitree motor order: FR, FL, RR, RL; each hip offset is [x, y, z] in Unitree base frame.
 contact_hip_offsets: [0.1934, -0.0465, 0.0, 0.1934, 0.0465, 0.0, -0.1934, -0.0465, 0.0, -0.1934, 0.0465, 0.0]

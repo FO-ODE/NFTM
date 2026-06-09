@@ -5,6 +5,7 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <array>
 // #include <filesystem>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
@@ -21,6 +22,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <yaml-cpp/yaml.h>
 
 using namespace std::chrono_literals;
@@ -31,6 +33,15 @@ struct NodeConfig
     std::string lowstate_topic = "/lowstate";
     std::string body_frame = "body";
     std::string world_frame = "lidar";
+    bool publish_foot_markers = true;
+    std::string foot_marker_topic = "foot_markers";
+    std::vector<std::string> foot_marker_names = {"fr", "fl", "rr", "rl"};
+    std::array<std::array<float, 3>, 4> foot_marker_colors = {{
+        {1.0F, 0.2F, 0.2F},
+        {0.2F, 0.8F, 1.0F},
+        {1.0F, 0.8F, 0.2F},
+        {0.2F, 1.0F, 0.4F},
+    }};
     bool print_time_cost = false;
 };
 struct StateData
@@ -64,12 +75,14 @@ public:
         m_world_cloud_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("world_cloud", 10000);
         m_path_pub = this->create_publisher<nav_msgs::msg::Path>("lio_path", 10000);
         m_odom_pub = this->create_publisher<nav_msgs::msg::Odometry>("lio_odom", 10000);
+        m_foot_marker_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>(m_node_config.foot_marker_topic, 10);
         m_tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
 
         m_state_data.path.poses.clear();
         m_state_data.path.header.frame_id = m_node_config.world_frame;
 
         m_kf = std::make_shared<IESKF>();
+        m_kf->setMaxIter(m_builder_config.ieskf_max_iter);
         m_builder = std::make_shared<MapBuilder>(m_builder_config, m_kf);
         m_timer = this->create_wall_timer(20ms, std::bind(&LIONode::timerCB, this));
     }
@@ -95,6 +108,33 @@ public:
         m_node_config.body_frame = config["body_frame"].as<std::string>();
         m_node_config.world_frame = config["world_frame"].as<std::string>();
         m_node_config.print_time_cost = config["print_time_cost"].as<bool>();
+        if (config["publish_foot_markers"])
+            m_node_config.publish_foot_markers = config["publish_foot_markers"].as<bool>();
+        if (config["foot_marker_topic"])
+            m_node_config.foot_marker_topic = config["foot_marker_topic"].as<std::string>();
+        if (config["foot_marker_names"])
+        {
+            std::vector<std::string> foot_marker_names = config["foot_marker_names"].as<std::vector<std::string>>();
+            if (foot_marker_names.size() == 4)
+                m_node_config.foot_marker_names = foot_marker_names;
+            else
+                RCLCPP_WARN(this->get_logger(), "foot_marker_names must contain exactly 4 names, keep default foot marker names");
+        }
+        if (config["foot_marker_colors"])
+        {
+            std::vector<float> foot_marker_colors = config["foot_marker_colors"].as<std::vector<float>>();
+            if (foot_marker_colors.size() == 12)
+            {
+                for (size_t i = 0; i < 4; i++)
+                {
+                    m_node_config.foot_marker_colors[i][0] = foot_marker_colors[3 * i];
+                    m_node_config.foot_marker_colors[i][1] = foot_marker_colors[3 * i + 1];
+                    m_node_config.foot_marker_colors[i][2] = foot_marker_colors[3 * i + 2];
+                }
+            }
+            else
+                RCLCPP_WARN(this->get_logger(), "foot_marker_colors must contain exactly 12 RGB values, keep default foot marker colors");
+        }
 
         m_builder_config.lidar_filter_num = config["lidar_filter_num"].as<int>();
         m_builder_config.lidar_min_range = config["lidar_min_range"].as<double>();
@@ -133,6 +173,24 @@ public:
             m_builder_config.contact_thigh_link = config["contact_thigh_link"].as<double>();
         if (config["contact_calf_link"])
             m_builder_config.contact_calf_link = config["contact_calf_link"].as<double>();
+        if (config["contact_r_base_body"])
+        {
+            std::vector<double> r_base_body = config["contact_r_base_body"].as<std::vector<double>>();
+            if (r_base_body.size() == 9)
+                m_builder_config.contact_r_base_body << r_base_body[0], r_base_body[1], r_base_body[2],
+                    r_base_body[3], r_base_body[4], r_base_body[5],
+                    r_base_body[6], r_base_body[7], r_base_body[8];
+            else
+                RCLCPP_WARN(this->get_logger(), "contact_r_base_body must contain exactly 9 values, keep identity");
+        }
+        if (config["contact_t_base_body"])
+        {
+            std::vector<double> t_base_body = config["contact_t_base_body"].as<std::vector<double>>();
+            if (t_base_body.size() == 3)
+                m_builder_config.contact_t_base_body << t_base_body[0], t_base_body[1], t_base_body[2];
+            else
+                RCLCPP_WARN(this->get_logger(), "contact_t_base_body must contain exactly 3 values, keep zero");
+        }
         if (config["contact_hip_offsets"])
         {
             std::vector<double> hip_offsets = config["contact_hip_offsets"].as<std::vector<double>>();
@@ -230,6 +288,10 @@ public:
                 m_package.lowstates.emplace_back(m_state_data.lowstate_buffer.front());
                 m_state_data.lowstate_buffer.pop_front();
             }
+            if (m_package.lowstates.empty() && !m_state_data.lowstate_buffer.empty())
+                m_package.lowstates.emplace_back(m_state_data.lowstate_buffer.back());
+            while (m_state_data.lowstate_buffer.size() > 200)
+                m_state_data.lowstate_buffer.pop_front();
         }
         m_state_data.lidar_buffer.pop_front();
         m_state_data.lidar_pushed = false;
@@ -308,6 +370,42 @@ public:
         broad_caster->sendTransform(transformStamped);
     }
 
+    void publishFootMarkers(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub, const double &time)
+    {
+        if (marker_pub->get_subscription_count() <= 0)
+            return;
+
+        const State &state = m_kf->x();
+        const std::array<V3D, 4> foot_positions = {state.p_f1, state.p_f2, state.p_f3, state.p_f4};
+
+        visualization_msgs::msg::MarkerArray marker_array;
+        for (size_t i = 0; i < foot_positions.size(); i++)
+        {
+            visualization_msgs::msg::Marker marker;
+            marker.header.frame_id = m_node_config.world_frame;
+            marker.header.stamp = Utils::getTime(time);
+            marker.ns = "fastlio_foot";
+            marker.id = static_cast<int>(i);
+            marker.type = visualization_msgs::msg::Marker::SPHERE;
+            marker.action = visualization_msgs::msg::Marker::ADD;
+            marker.pose.position.x = foot_positions[i].x();
+            marker.pose.position.y = foot_positions[i].y();
+            marker.pose.position.z = foot_positions[i].z();
+            marker.pose.orientation.w = 1.0;
+            marker.scale.x = 0.08;
+            marker.scale.y = 0.08;
+            marker.scale.z = 0.08;
+            marker.color.r = m_node_config.foot_marker_colors[i][0];
+            marker.color.g = m_node_config.foot_marker_colors[i][1];
+            marker.color.b = m_node_config.foot_marker_colors[i][2];
+            marker.color.a = 1.0;
+            marker.lifetime = rclcpp::Duration::from_seconds(0.2);
+            marker.text = m_node_config.foot_marker_names[i];
+            marker_array.markers.push_back(marker);
+        }
+        marker_pub->publish(marker_array);
+    }
+
     void timerCB()
     {
         if (!syncPackage())
@@ -326,6 +424,8 @@ public:
             return;
 
         broadCastTF(m_tf_broadcaster, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
+        if (m_node_config.publish_foot_markers)
+            publishFootMarkers(m_foot_marker_pub, m_package.cloud_end_time);
 
         publishOdometry(m_odom_pub, m_node_config.world_frame, m_node_config.body_frame, m_package.cloud_end_time);
 
@@ -354,6 +454,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_world_cloud_pub;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr m_path_pub;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr m_odom_pub;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_foot_marker_pub;
 
     rclcpp::TimerBase::SharedPtr m_timer;
     StateData m_state_data;

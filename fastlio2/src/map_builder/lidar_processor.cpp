@@ -1,5 +1,7 @@
 #include "lidar_processor.h"
 
+#include <algorithm>
+
 LidarProcessor::LidarProcessor(Config &config, std::shared_ptr<IESKF> kf) : m_config(config), m_kf(kf)
 {
     m_ikdtree = std::make_shared<KD_TREE<PointType>>();
@@ -150,10 +152,42 @@ void LidarProcessor::initCloudMap(PointVec &point_vec)
     m_ikdtree->Build(point_vec);
 }
 
-void LidarProcessor::process(SyncPackage &package)
+void LidarProcessor::process(SyncPackage &package, const loss_func &extra_loss_func)
 {
-    m_kf->setLossFunction([&](State &s, SharedState &d)
-                          { updateLossFunc(s, d); });
+    loss_func extra_loss = extra_loss_func;
+    m_kf->setLossFunction([this, extra_loss](State &s, SharedState &d)
+                          {
+                              SharedState lidar_data;
+                              updateLossFunc(s, lidar_data);
+
+                              SharedState extra_data;
+                              if (extra_loss)
+                                  extra_loss(s, extra_data);
+
+                              d.H.setZero();
+                              d.b.setZero();
+                              d.res = 0.0;
+                              d.valid = lidar_data.valid || extra_data.valid;
+                              d.iter_num = std::max(lidar_data.iter_num, extra_data.iter_num);
+
+                              int valid_terms = 0;
+                              if (lidar_data.valid)
+                              {
+                                  d.H += lidar_data.H;
+                                  d.b += lidar_data.b;
+                                  d.res += lidar_data.res;
+                                  valid_terms++;
+                              }
+                              if (extra_data.valid)
+                              {
+                                  d.H += extra_data.H;
+                                  d.b += extra_data.b;
+                                  d.res += extra_data.res;
+                                  valid_terms++;
+                              }
+                              if (valid_terms > 0)
+                                  d.res /= static_cast<double>(valid_terms);
+                          });
     m_kf->setStopFunction([&](const VStateD &delta) -> bool
                           { V3D rot_delta = delta.block<3, 1>(0, 0);
                             V3D t_delta = delta.block<3, 1>(3, 0);

@@ -23,7 +23,7 @@ public:
 
     void initCloudMap(PointVec &point_vec);
 
-    void process(SyncPackage &package);
+    void process(SyncPackage &package, const loss_func &extra_loss_func = nullptr);
 
     void updateLossFunc(State &state, SharedState &share_data);
 

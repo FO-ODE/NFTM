@@ -10,10 +10,7 @@ ContactProcessor::ContactProcessor(Config &config, std::shared_ptr<IESKF> kf) : 
 
 void ContactProcessor::process(SyncPackage &package)
 {
-    cacheLowStates(package);
-    cacheImus(package);
-    updateContactState();
-    initializeNewContacts();
+    prepare(package);
 
     if (!m_config.contact_enable || !m_has_lowstate || !m_has_imu || !hasActiveContact())
         return;
@@ -23,6 +20,14 @@ void ContactProcessor::process(SyncPackage &package)
     m_kf->setStopFunction([&](const VStateD &delta) -> bool
                           { return delta.segment<15>(0).norm() < 1e-5 && delta.segment<kFootPositionDim>(kFootPositionStartIdx).norm() < 1e-5; });
     m_kf->update();
+}
+
+void ContactProcessor::prepare(SyncPackage &package)
+{
+    cacheLowStates(package);
+    cacheImus(package);
+    updateContactState();
+    initializeNewContacts();
 }
 
 void ContactProcessor::updateLossFunc(State &state, SharedState &share_data)
@@ -169,9 +174,12 @@ V3D ContactProcessor::footRelativePosition(int foot_idx) const
     p_leg.y() = side_sign * l_ab * std::cos(q_ab) + leg_extension * std::sin(q_ab);
     p_leg.z() = side_sign * l_ab * std::sin(q_ab) - leg_extension * std::cos(q_ab);
 
+    const V3D p_base_to_foot = m_config.contact_hip_offsets.segment<3>(joint_idx) + p_leg;
+    const V3D p_body_to_foot = m_config.contact_r_base_body.transpose() * (p_base_to_foot - m_config.contact_t_base_body);
+
     // Formula (15) uses R_wb^T * (p_wb - p_f_i), so expose the body-minus-foot
-    // vector. The geometric leg model above computes the usual body-to-foot FK.
-    return -(m_config.contact_hip_offsets.segment<3>(joint_idx) + p_leg);
+    // vector in the FAST-LIO body/IMU frame. Unitree FK is computed in base.
+    return -p_body_to_foot;
 }
 
 V3D ContactProcessor::footRelativeVelocity(int foot_idx) const
@@ -203,9 +211,12 @@ V3D ContactProcessor::footRelativeVelocity(int foot_idx) const
     J(2, 1) = -leg_extension_dq_hip * std::cos(q_ab);
     J(2, 2) = -leg_extension_dq_knee * std::cos(q_ab);
 
+    const V3D v_base_to_foot = J * dq;
+    const V3D v_body_to_foot = m_config.contact_r_base_body.transpose() * v_base_to_foot;
+
     // Keep velocity consistent with footRelativePosition(), whose sign follows
     // formula (15) instead of the usual body-to-foot FK convention.
-    return -J * dq;
+    return -v_body_to_foot;
 }
 
 V3D &ContactProcessor::footPosition(State &state, int foot_idx) const

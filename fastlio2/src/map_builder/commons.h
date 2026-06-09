@@ -60,6 +60,8 @@ struct Config
     double contact_abduction_link = 0.0955;
     double contact_thigh_link = 0.213;
     double contact_calf_link = 0.213;
+    M3D contact_r_base_body = M3D::Identity();
+    V3D contact_t_base_body = V3D::Zero();
     V12D contact_hip_offsets = (V12D() << 0.1934, -0.0465, 0.0,
                                 0.1934, 0.0465, 0.0,
                                 -0.1934, -0.0465, 0.0,

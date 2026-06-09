@@ -7,6 +7,8 @@ class ContactProcessor
 public:
     ContactProcessor(Config &config, std::shared_ptr<IESKF> kf);
 
+    void prepare(SyncPackage &package);
+
     void process(SyncPackage &package);
 
     void updateLossFunc(State &state, SharedState &share_data);
