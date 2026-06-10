@@ -1,6 +1,10 @@
 #include "map_builder.h"
 MapBuilder::MapBuilder(Config &config, std::shared_ptr<IESKF> kf) : m_config(config), m_kf(kf)
 {
+    m_kf->configureStateLog(
+        m_config.state_log_enable,
+        m_config.state_log_path,
+        m_config.state_log_flush);
     m_imu_processor = std::make_shared<IMUProcessor>(config, kf);
     m_contact_processor = std::make_shared<ContactProcessor>(config, kf);
     m_lidar_processor = std::make_shared<LidarProcessor>(config, kf);

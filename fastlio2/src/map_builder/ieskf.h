@@ -1,5 +1,6 @@
 #pragma once
 #include <Eigen/Eigen>
+#include <fstream>
 #include <sophus/so3.hpp>
 #include "commons.h"
 
@@ -73,6 +74,9 @@ public:
     void setMaxIter(size_t iter) { m_max_iter = iter; }
     void setLossFunction(loss_func func) { m_loss_func = func; }
     void setStopFunction(stop_func func) { m_stop_func = func; }
+    void configureStateLog(bool enabled, const std::string &path, bool flush_each_write);
+    void setDebugContext(const std::string &stage, double time);
+    void setContactDebug(const V4D &contact_state, const V4D &foot_force);
 
     void predict(const Input &inp, double dt, const MNoiseD &Q);
 
@@ -90,4 +94,13 @@ private:
     stop_func m_stop_func;
     MStateD m_F;
     MStateXNoiseD m_G;
+    bool m_state_log_enabled = false;
+    bool m_state_log_flush = false;
+    double m_debug_time = 0.0;
+    std::string m_debug_stage = "unknown";
+    V4D m_debug_contact_state = V4D::Zero();
+    V4D m_debug_foot_force = V4D::Zero();
+    std::ofstream m_state_log;
+
+    void logState(const std::string &event, int iter, bool valid, double res, const VStateD *delta);
 };

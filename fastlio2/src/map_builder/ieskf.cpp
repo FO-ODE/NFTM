@@ -1,5 +1,8 @@
 #include "ieskf.h"
 
+#include <iomanip>
+#include <iostream>
+
 double State::gravity = 9.81;
 
 M3D Jr(const V3D &inp)
@@ -57,6 +60,102 @@ std::ostream &operator<<(std::ostream &os, const State &state)
     return os;
 }
 
+void IESKF::configureStateLog(bool enabled, const std::string &path, bool flush_each_write)
+{
+    m_state_log_enabled = enabled;
+    m_state_log_flush = flush_each_write;
+
+    if (m_state_log.is_open())
+        m_state_log.close();
+
+    if (!m_state_log_enabled)
+        return;
+
+    m_state_log.open(path, std::ios::out | std::ios::trunc);
+    if (!m_state_log.is_open())
+    {
+        std::cerr << "Failed to open IESKF state log: " << path << std::endl;
+        m_state_log_enabled = false;
+        return;
+    }
+
+    m_state_log << "stage,event,time,iter,valid,res,delta_norm,"
+                << "r00,r01,r02,r10,r11,r12,r20,r21,r22,"
+                << "t_x,t_y,t_z,"
+                << "v_x,v_y,v_z,"
+                << "ba_x,ba_y,ba_z,"
+                << "bg_x,bg_y,bg_z,"
+                << "pf1_x,pf1_y,pf1_z,"
+                << "pf2_x,pf2_y,pf2_z,"
+                << "pf3_x,pf3_y,pf3_z,"
+                << "pf4_x,pf4_y,pf4_z,"
+                << "g_x,g_y,g_z,"
+                << "contact0,contact1,contact2,contact3,"
+                << "force0,force1,force2,force3"
+                << '\n';
+}
+
+void IESKF::setDebugContext(const std::string &stage, double time)
+{
+    if (!m_state_log_enabled)
+        return;
+
+    m_debug_stage = stage;
+    m_debug_time = time;
+}
+
+void IESKF::setContactDebug(const V4D &contact_state, const V4D &foot_force)
+{
+    if (!m_state_log_enabled)
+        return;
+
+    m_debug_contact_state = contact_state;
+    m_debug_foot_force = foot_force;
+}
+
+void IESKF::logState(const std::string &event, int iter, bool valid, double res, const VStateD *delta)
+{
+    if (!m_state_log_enabled || !m_state_log.is_open())
+        return;
+
+    const double delta_norm = delta ? delta->norm() : 0.0;
+    m_state_log << std::setprecision(15)
+                << m_debug_stage << ','
+                << event << ','
+                << m_debug_time << ','
+                << iter << ','
+                << (valid ? 1 : 0) << ','
+                << res << ','
+                << delta_norm;
+
+    for (int row = 0; row < 3; row++)
+        for (int col = 0; col < 3; col++)
+            m_state_log << ',' << m_x.r_wi(row, col);
+
+    auto write_vec3 = [this](const V3D &vec)
+    {
+        m_state_log << ',' << vec.x() << ',' << vec.y() << ',' << vec.z();
+    };
+
+    write_vec3(m_x.t_wi);
+    write_vec3(m_x.v);
+    write_vec3(m_x.ba);
+    write_vec3(m_x.bg);
+    write_vec3(m_x.p_f1);
+    write_vec3(m_x.p_f2);
+    write_vec3(m_x.p_f3);
+    write_vec3(m_x.p_f4);
+    write_vec3(m_x.g);
+    for (int i = 0; i < 4; i++)
+        m_state_log << ',' << m_debug_contact_state(i);
+    for (int i = 0; i < 4; i++)
+        m_state_log << ',' << m_debug_foot_force(i);
+    m_state_log << '\n';
+
+    if (m_state_log_flush)
+        m_state_log.flush();
+}
+
 void IESKF::predict(const Input &inp, double dt, const MNoiseD &Q)
 {
     VStateD delta = VStateD::Zero();
@@ -83,6 +182,7 @@ void IESKF::predict(const Input &inp, double dt, const MNoiseD &Q)
 
     m_x += delta;
     m_P = m_F * m_P * m_F.transpose() + m_G * Q * m_G.transpose();
+    logState("propagation", -1, true, 0.0, &delta);
 }
 
 void IESKF::update()
@@ -99,6 +199,7 @@ void IESKF::update()
     for (size_t i = 0; i < m_max_iter; i++)
     {
         m_loss_func(m_x, shared_data);
+        logState("update_linearized", static_cast<int>(i), shared_data.valid, shared_data.res, nullptr);
         if (!shared_data.valid)
             break;
         updated = true;
@@ -116,6 +217,7 @@ void IESKF::update()
         delta = -H.inverse() * b;
 
         m_x += delta;
+        logState("update_applied", static_cast<int>(i), true, shared_data.res, &delta);
         shared_data.iter_num += 1;
 
         if (m_stop_func(delta))
@@ -129,4 +231,5 @@ void IESKF::update()
     // L.block<3, 3>(0, 0) = JrInv(delta.segment<3>(0));
     L.block<3, 3>(0, 0) = Jr(delta.segment<3>(0));
     m_P = L * H.inverse() * L.transpose();
+    logState("update_final", static_cast<int>(shared_data.iter_num), true, shared_data.res, &delta);
 }

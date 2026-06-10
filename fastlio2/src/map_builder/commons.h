@@ -2,6 +2,7 @@
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <string>
 
 using PointType = pcl::PointXYZINormal;
 using CloudType = pcl::PointCloud<PointType>;
@@ -48,6 +49,9 @@ struct Config
     int near_search_num = 5;
     int ieskf_max_iter = 5;
     bool gravity_align = true;
+    bool state_log_enable = false;
+    std::string state_log_path = "/tmp/fastlio2_state_log.csv";
+    bool state_log_flush = false;
     M3D r_il = M3D::Identity();
     V3D t_il = V3D::Zero();
 

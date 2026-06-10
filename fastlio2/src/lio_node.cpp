@@ -153,6 +153,12 @@ public:
         m_builder_config.near_search_num = config["near_search_num"].as<int>();
         m_builder_config.ieskf_max_iter = config["ieskf_max_iter"].as<int>();
         m_builder_config.gravity_align = config["gravity_align"].as<bool>();
+        if (config["state_log_enable"])
+            m_builder_config.state_log_enable = config["state_log_enable"].as<bool>();
+        if (config["state_log_path"])
+            m_builder_config.state_log_path = config["state_log_path"].as<std::string>();
+        if (config["state_log_flush"])
+            m_builder_config.state_log_flush = config["state_log_flush"].as<bool>();
         std::vector<double> t_il_vec = config["t_il"].as<std::vector<double>>();
         std::vector<double> r_il_vec = config["r_il"].as<std::vector<double>>();
         m_builder_config.t_il << t_il_vec[0], t_il_vec[1], t_il_vec[2];

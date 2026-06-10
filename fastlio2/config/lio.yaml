@@ -13,7 +13,7 @@ print_time_cost: true
 
 lidar_filter_num: 2
 lidar_min_range: 0.4
-lidar_max_range: 5.0
+lidar_max_range: 20.0
 scan_resolution: 0.10
 map_resolution: 0.10
 
@@ -26,9 +26,12 @@ ng: 0.01
 nba: 0.0001
 nbg: 0.0001
 
-imu_init_num: 20
+imu_init_num: 50
 near_search_num: 5
 ieskf_max_iter: 5
+state_log_enable: true
+state_log_path: /tmp/fastlio2_state_log.csv
+state_log_flush: false
 
 gravity_align: true
 
@@ -39,8 +42,8 @@ lidar_cov_inv: 1200.0
 
 contact_enable: true
 contact_force_threshold: 30.0
-contact_position_cov_inv: 500.0
-contact_velocity_cov_inv: 500.0
+contact_position_cov_inv: 1000.0
+contact_velocity_cov_inv: 1000.0
 # Zero-mean Gaussian random-walk noise for each foot position state.
 # Larger value lets p_f drift faster during propagation; contact residuals pull it back.
 contact_foot_position_noise: 0.01

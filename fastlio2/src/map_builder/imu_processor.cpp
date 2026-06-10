@@ -83,6 +83,7 @@ void IMUProcessor::undistort(SyncPackage &package)
 
         inp.acc = acc_val;
         inp.gyro = gyro_val;
+        m_kf->setDebugContext("propagation", tail.time);
         m_kf->predict(inp, dt, m_Q);
 
         m_last_gyro = gyro_val - m_kf->x().bg;
@@ -92,6 +93,7 @@ void IMUProcessor::undistort(SyncPackage &package)
     }
 
     dt = propagate_time_end - imu_time_end;
+    m_kf->setDebugContext("propagation", propagate_time_end);
     m_kf->predict(inp, dt, m_Q);
     m_last_imu = m_imu_cache.back();
     m_last_propagate_end_time = propagate_time_end;

@@ -27,6 +27,8 @@ void ContactProcessor::prepare(SyncPackage &package)
     cacheLowStates(package);
     cacheImus(package);
     updateContactState();
+    if (m_has_lowstate)
+        m_kf->setContactDebug(m_contact_state, m_latest_lowstate.foot_force);
     initializeNewContacts();
 }
 

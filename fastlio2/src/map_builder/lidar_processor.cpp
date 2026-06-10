@@ -202,6 +202,7 @@ void LidarProcessor::process(SyncPackage &package, const loss_func &extra_loss_f
         pcl::copyPointCloud(*package.cloud, *m_cloud_down_lidar);
     }
     trimCloudMap();
+    m_kf->setDebugContext(m_config.contact_enable ? "update_lidar_contact" : "update_lidar", package.cloud_end_time);
     m_kf->update();
     incrCloudMap();
 }
