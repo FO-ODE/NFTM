@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import math
+from typing import cast
 
 import rclpy
 from geometry_msgs.msg import TransformStamped
@@ -9,7 +10,11 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 from rclpy.time import Time
-from tf2_ros import Buffer, TransformBroadcaster, TransformException, TransformListener
+import tf2_py as tf2
+from tf2_ros import Buffer, TransformBroadcaster, TransformListener
+
+
+TF2_TRANSFORM_EXCEPTION = cast(type[Exception], getattr(tf2, 'TransformException', Exception))
 
 
 def quat_normalize(q):
@@ -65,28 +70,27 @@ class FastlioLidarToBaseTF(Node):
     def __init__(self):
         super().__init__('fastlio_lidar_to_base_tf')
 
-        self.declare_parameter('world_frame', 'world')
-        self.declare_parameter('fastlio_lidar_frame', 'fastlio_lidar')
-        self.declare_parameter('lidar_imu_frame', 'mid360_imu')
-        self.declare_parameter('base_frame', 'base')
-        self.declare_parameter('publish_rate', 10.0)
-        self.declare_parameter('lookup_timeout_sec', 0.05)
-        self.declare_parameter('use_fastlio_stamp', False)
-
-        self.world_frame = self.get_parameter('world_frame').value
-        self.fastlio_lidar_frame = self.get_parameter('fastlio_lidar_frame').value
-        self.lidar_imu_frame = self.get_parameter('lidar_imu_frame').value
-        self.base_frame = self.get_parameter('base_frame').value
-        publish_rate = float(self.get_parameter('publish_rate').value)
+        self.world_frame: str = self._declare_str_param('world_frame', 'world')
+        self.fastlio_lidar_frame: str = self._declare_str_param(
+            'fastlio_lidar_frame', 'fastlio_lidar'
+        )
+        self.lidar_imu_frame: str = self._declare_str_param(
+            'lidar_imu_frame', 'mid360_imu'
+        )
+        self.base_frame: str = self._declare_str_param('base_frame', 'base')
+        publish_rate = self._declare_float_param('publish_rate', 10.0)
         self.shutting_down = False
         self.timer = None
         self.tf_buffer = None
         self.tf_listener = None
         self.tf_broadcaster = None
+        lookup_timeout_sec = self._declare_float_param('lookup_timeout_sec', 0.05)
         self.lookup_timeout = Duration(
-            seconds=float(self.get_parameter('lookup_timeout_sec').value)
+            nanoseconds=int(lookup_timeout_sec * 1_000_000_000)
         )
-        self.use_fastlio_stamp = bool(self.get_parameter('use_fastlio_stamp').value)
+        self.use_fastlio_stamp: bool = self._declare_bool_param(
+            'use_fastlio_stamp', False
+        )
 
         if publish_rate <= 0.0:
             raise ValueError('publish_rate must be greater than 0.0')
@@ -101,6 +105,24 @@ class FastlioLidarToBaseTF(Node):
             f'{self.world_frame} -> {self.fastlio_lidar_frame} and '
             f'{self.lidar_imu_frame} -> {self.base_frame}'
         )
+
+    def _declare_str_param(self, name: str, default_value: str) -> str:
+        value = self.declare_parameter(name, default_value).value
+        if not isinstance(value, str):
+            raise TypeError(f'Parameter {name} must be a string')
+        return value
+
+    def _declare_float_param(self, name: str, default_value: float) -> float:
+        value = self.declare_parameter(name, default_value).value
+        if not isinstance(value, (int, float)):
+            raise TypeError(f'Parameter {name} must be numeric')
+        return float(cast(int | float, value))
+
+    def _declare_bool_param(self, name: str, default_value: bool) -> bool:
+        value = self.declare_parameter(name, default_value).value
+        if not isinstance(value, bool):
+            raise TypeError(f'Parameter {name} must be a bool')
+        return value
 
     def publish_world_to_base(self):
         if (
@@ -124,7 +146,7 @@ class FastlioLidarToBaseTF(Node):
                 Time(),
                 self.lookup_timeout,
             )
-        except TransformException as exc:
+        except TF2_TRANSFORM_EXCEPTION as exc:
             self.get_logger().warn(
                 f'Waiting for TF chain: {exc}',
                 throttle_duration_sec=2.0,
