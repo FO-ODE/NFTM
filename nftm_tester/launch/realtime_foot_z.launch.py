@@ -63,7 +63,7 @@ def generate_launch_description():
         ),
         Node(
             package='nftm_tester',
-            executable='realtime_foot_z',
+            executable='realtime_foot_z.py',
             name='realtime_foot_z',
             output='screen',
             parameters=[{

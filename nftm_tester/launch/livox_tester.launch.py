@@ -22,7 +22,7 @@ def generate_launch_description():
         ),
         Node(
             package='nftm_tester',
-            executable='livox_tester',
+            executable='livox_tester.py',
             name='livox_tester',
             output='screen',
             parameters=[config_file],

@@ -51,7 +51,7 @@ def generate_launch_description():
         ),
         Node(
             package='nftm_tester',
-            executable='realtime_foot_force',
+            executable='realtime_foot_force.py',
             name='realtime_foot_force',
             output='screen',
             parameters=[{

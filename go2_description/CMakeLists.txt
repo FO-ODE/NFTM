@@ -5,15 +5,16 @@ project(go2_description)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY config dae launch meshes rviz urdf xacro
+  DIRECTORY config dae launch rviz urdf
   DESTINATION share/${PROJECT_NAME}
 )
 
+file(GLOB SCRIPT_FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.py"
+)
+
 install(
-  PROGRAMS
-    scripts/fastlio_lidar_to_base_tf.py
-    scripts/livox_custom_to_pointcloud2.py
-    scripts/lowstate_joint_state_publisher.py
+  PROGRAMS ${SCRIPT_FILES}
   DESTINATION lib/${PROJECT_NAME}
 )
 

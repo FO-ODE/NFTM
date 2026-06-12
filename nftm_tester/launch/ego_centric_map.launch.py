@@ -22,7 +22,7 @@ def generate_launch_description():
         ),
         Node(
             package='nftm_tester',
-            executable='ego_centric_map',
+            executable='ego_centric_map.py',
             name='ego_centric_map',
             output='screen',
             parameters=[config_file],

@@ -14,7 +14,7 @@ It is built upon [FAST_LIO](https://github.com/hku-mars/FAST_LIO) and inspired b
 ## Usage
 
 ```bash
-ros2 launch go2_description go2_rviz.launch.py
+ros2 launch go2_description go2_modified_rviz.launch.py
 
 ros2 launch fastlio2 lio_launch.py
 

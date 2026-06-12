@@ -22,7 +22,7 @@ def generate_launch_description():
         ),
         Node(
             package='nftm_tester',
-            executable='ground_height_grid',
+            executable='ground_height_grid.py',
             name='ground_height_grid',
             output='screen',
             parameters=[config_file],
